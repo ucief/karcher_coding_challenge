@@ -1,5 +1,7 @@
 #pragma once
 
+#include <boost/geometry/geometries/point_xy.hpp>
+
 #include <array>
 #include <limits>
 #include <vector>
@@ -7,11 +9,7 @@
 namespace path_analysis
 {
 
-    struct Point
-    {
-        double x;
-        double y;
-    };
+    using Point = boost::geometry::model::d2::point_xy<double>;
 
     // A single 2D pose. An unknown heading is NaN.
     struct Pose

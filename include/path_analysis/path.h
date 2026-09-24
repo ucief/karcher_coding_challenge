@@ -49,8 +49,9 @@ namespace path_analysis
     // Area swept by the gadget, square metres; count overlapping regions only once.
     // Interpolate position and shortest-angle rotation between consecutive poses.
     // Empty/single-point paths sweep zero area. Skip segments with undefined headings.
-    // Approximation: 5 mm cell-centre grid; pose steps <= 2 cm and 2 degrees.
-    // Throws runtime_error if the coverage grid would exceed 100 million cells.
+    // Boost.Geometry unions swept triangles; pose steps <= 2 cm and 2 degrees.
+    // Union coordinates are rounded to 10 micrometres; rotation is approximated.
+    // Polygon area includes holes and disconnected regions.
     double cleaned_area(const Trajectory &trajectory,
                         const std::array<Point, 2> &cleaning_gadget);
 
