@@ -430,7 +430,7 @@ def main():
     )
 
     fig.write_html(
-        "results/visualization.html"
+        "docs/index.html"
     )
 
     fig.show()

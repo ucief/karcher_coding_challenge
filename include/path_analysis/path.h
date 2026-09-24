@@ -11,7 +11,7 @@ namespace path_analysis
     // Sum of consecutive distances in metres. Empty/single-point paths return zero.
     double path_length(const std::vector<Point> &path);
 
-    // Collapse stationary clusters, keeping their first and last samples.
+    // Collapse multiple measurements at stationary points, keeping their first or last sample.
     // Compare with the cluster's first point so small movements can accumulate.
     // min_movement = 0 disables filtering; negative/nonfinite values are invalid.
     std::vector<Point> preprocess_path(const std::vector<Point> &path, double min_movement = 0.01);
