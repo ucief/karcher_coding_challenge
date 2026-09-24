@@ -9,8 +9,10 @@ import plotly.graph_objects as go
 DATA_JSON = Path("data/short.json")
 TRAJECTORY_CSV = Path("results/trajectory.csv")
 CLEANED_AREA_CSV = Path("results/cleaned_area.csv")
+RESULTS_JSON = Path("results/results.json")
 
 ROBOT_STRIDE = 10
+HEADING_STRIDE = 5
 HEADING_LENGTH = 0.25
 
 
@@ -50,6 +52,8 @@ def add_polygon_trace(fig, points, name, color=None, showlegend=True):
 
 
 def add_cleaned_area(fig, cleaned_area):
+    first_polygon = True
+
     for polygon_id, polygon in cleaned_area.groupby(
         "polygon_id", sort=False
     ):
@@ -77,14 +81,20 @@ def add_cleaned_area(fig, cleaned_area):
         fig.add_shape(
             type="path",
             path=" ".join(path_parts),
-            fillcolor="rgba(0, 150, 100, 0.25)",
+            fillcolor="rgba(34, 197, 94, 0.22)",
             line=dict(
-                color="rgba(0, 120, 80, 0.8)",
-                width=1,
+                color="rgba(22, 163, 74, 0.85)",
+                width=1.2,
             ),
             fillrule="evenodd",
             layer="below",
+            name="Cleaned area",
+            legendgroup="cleaned_area",
+            showlegend=first_polygon,
         )
+
+        first_polygon = False
+
 
 def main():
     # ------------------------------------------------------------
@@ -94,9 +104,12 @@ def main():
     with open(DATA_JSON) as f:
         input_data = json.load(f)
 
-    trajectory = pd.read_csv(TRAJECTORY_CSV)
+    with open(RESULTS_JSON) as f:
+        results = json.load(f)
 
+    trajectory = pd.read_csv(TRAJECTORY_CSV)
     cleaned_area = pd.read_csv(CLEANED_AREA_CSV)
+
     raw_path = np.asarray(input_data["path"])
     robot = np.asarray(input_data["robot"])
     gadget = np.asarray(input_data["cleaning_gadget"])
@@ -117,8 +130,14 @@ def main():
             y=raw_path[:, 1],
             mode="lines+markers",
             name="Raw trajectory",
-            line=dict(width=1),
-            marker=dict(size=3),
+            line=dict(
+                width=1,
+                color="rgba(100, 116, 139, 0.65)",
+            ),
+            marker=dict(
+                size=3,
+                color="rgba(100, 116, 139, 0.65)",
+            ),
         )
     )
 
@@ -132,7 +151,10 @@ def main():
             y=trajectory["y_m"],
             mode="lines",
             name="Filtered trajectory",
-            line=dict(width=3),
+            line=dict(
+                width=3,
+                color="#2563eb",
+            ),
         )
     )
 
@@ -146,13 +168,15 @@ def main():
             y=trajectory["y_m"],
             mode="markers",
             name="Speed",
+            visible="legendonly",
             marker=dict(
-                size=6,
+                size=7,
                 color=trajectory["speed_m_per_s"],
                 colorscale="Viridis",
                 showscale=True,
                 colorbar=dict(
-                    title="Speed [m/s]"
+                    title="Speed<br>[m/s]",
+                    thickness=15,
                 ),
             ),
             customdata=np.stack(
@@ -164,11 +188,12 @@ def main():
                 axis=1,
             ),
             hovertemplate=(
-                "x=%{x:.3f} m<br>"
-                "y=%{y:.3f} m<br>"
-                "heading=%{customdata[0]:.3f} rad<br>"
-                "curvature=%{customdata[1]:.3f} 1/m<br>"
-                "speed=%{customdata[2]:.3f} m/s"
+                "<b>Trajectory</b><br>"
+                "x: %{x:.3f} m<br>"
+                "y: %{y:.3f} m<br>"
+                "heading: %{customdata[0]:.3f} rad<br>"
+                "curvature: %{customdata[1]:.3f} 1/m<br>"
+                "speed: %{customdata[2]:.3f} m/s"
                 "<extra></extra>"
             ),
         )
@@ -181,7 +206,7 @@ def main():
     heading_x = []
     heading_y = []
 
-    for row in trajectory.itertuples():
+    for row in trajectory.iloc[::HEADING_STRIDE].itertuples():
         if not np.isfinite(row.heading_rad):
             continue
 
@@ -206,7 +231,11 @@ def main():
             y=heading_y,
             mode="lines",
             name="Heading",
-            line=dict(width=1),
+            visible="legendonly",
+            line=dict(
+                width=1.5,
+                color="#f59e0b",
+            ),
         )
     )
 
@@ -241,7 +270,11 @@ def main():
                 name="Robot footprint",
                 legendgroup="robot",
                 showlegend=first_robot,
-                line=dict(width=1),
+                visible="legendonly",
+                line=dict(
+                    width=1.5,
+                    color="rgba(30, 41, 59, 0.65)",
+                ),
             )
         )
 
@@ -285,7 +318,10 @@ def main():
             y=gadget_y,
             mode="lines",
             name="Cleaning gadget",
-            line=dict(width=2),
+            line=dict(
+                width=3,
+                color="#dc2626",
+            ),
         )
     )
 
@@ -299,22 +335,96 @@ def main():
     )
 
     # ------------------------------------------------------------
+    # Result cards
+    # ------------------------------------------------------------
+
+    cards = [
+        (
+            0.17,
+            "PATH LENGTH",
+            f"{results['path_length_m']:.3f} m",
+        ),
+        (
+            0.50,
+            "CLEANED AREA",
+            f"{results['cleaned_area_m2']:.3f} m²",
+        ),
+        (
+            0.83,
+            "TRAVERSAL TIME",
+            f"{results['traversal_time_s']:.3f} s",
+        ),
+    ]
+
+    for x, title, value in cards:
+        fig.add_annotation(
+            x=x,
+            y=1.08,
+            xref="paper",
+            yref="paper",
+            text=(
+                f"<span style='font-size:12px;color:#64748b'>"
+                f"{title}</span>"
+                f"<br>"
+                f"<span style='font-size:22px'><b>{value}</b></span>"
+            ),
+            showarrow=False,
+            align="center",
+            bgcolor="white",
+            bordercolor="rgba(148, 163, 184, 0.45)",
+            borderwidth=1,
+            borderpad=10,
+        )
+
+    # ------------------------------------------------------------
     # Layout
     # ------------------------------------------------------------
 
     fig.update_layout(
-        title="Cleaning Robot Path Analysis",
-        xaxis_title="x [m]",
-        yaxis_title="y [m]",
+        title=dict(
+            text=(
+                "<b>Cleaning Robot Path Analysis</b>"
+                f"<br><span style='font-size:14px;color:#64748b'>"
+                f"Matthias Jarsch</span>"
+            ),
+            x=0.5,
+            xanchor="center",
+            font=dict(size=24),
+        ),
+        template="plotly_white",
+        height=850,
+        margin=dict(
+            l=70,
+            r=170,
+            t=180,
+            b=70,
+        ),
         hovermode="closest",
         legend=dict(
             title="Layers",
+            x=1.01,
+            y=1.0,
+            xanchor="left",
+            yanchor="top",
             groupclick="togglegroup",
+            bgcolor="rgba(255,255,255,0.9)",
+            bordercolor="rgba(148,163,184,0.4)",
+            borderwidth=1,
         ),
     )
 
-    # very important for geometric visualization
+    fig.update_xaxes(
+        title_text="x [m]",
+        showgrid=True,
+        gridcolor="rgba(148,163,184,0.20)",
+        zeroline=False,
+    )
+
     fig.update_yaxes(
+        title_text="y [m]",
+        showgrid=True,
+        gridcolor="rgba(148,163,184,0.20)",
+        zeroline=False,
         scaleanchor="x",
         scaleratio=1,
     )
