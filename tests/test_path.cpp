@@ -173,12 +173,15 @@ void test_curvature()
     const auto wrap = estimate_curvatures({{{0, 0}, pi - 0.01}, {{1, 0}, -pi + 0.01}});
     if (BOOST_TEST_EQ(wrap.size(), 1u))
         check_near(wrap[0], 0.02);
-    const auto duplicate = estimate_curvatures({{{0, 0}, 0}, {{0, 0}, 1}});
+    const auto duplicate =
+        estimate_curvatures({{{0, 0}, 0}, {{0, 0}, 1}});
     if (BOOST_TEST_EQ(duplicate.size(), 1u))
-        check_near(duplicate[0], 0);
-    const auto unknown = estimate_curvatures({{{0, 0}, std::numeric_limits<double>::quiet_NaN()}, {{1, 0}, 0}});
+        BOOST_TEST(std::isnan(duplicate[0]));
+    const auto unknown =
+        estimate_curvatures({{{0, 0}, std::numeric_limits<double>::quiet_NaN()},
+                             {{1, 0}, 0}});
     if (BOOST_TEST_EQ(unknown.size(), 1u))
-        check_near(unknown[0], 0);
+        BOOST_TEST(std::isnan(unknown[0]));
 }
 
 void test_speed_and_time()

@@ -189,7 +189,7 @@ namespace path_analysis
             const Pose &a = trajectory[i - 1];
             const Pose &b = trajectory[i];
             const double length = bg::distance(a.position, b.position);
-            double curvature = 0;
+            double curvature = std::numeric_limits<double>::quiet_NaN();
             if (length > 0 && std::isfinite(a.heading) && std::isfinite(b.heading))
             {
                 curvature = std::abs(angle_change(a.heading, b.heading)) / length;
