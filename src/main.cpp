@@ -10,6 +10,19 @@
 #include <boost/geometry.hpp>
 #include <boost/json.hpp>
 
+namespace
+{
+    // -----------------------------------------------------------------------------
+    // Analysis parameters
+    // -----------------------------------------------------------------------------
+    constexpr double PREPROCESSING_MINIMUM_DISTANCE_M = 0.01;
+    constexpr double HEADING_MINIMUM_DISTANCE_M = 0.09;
+    constexpr double CURVATURE_MINIMUM_DISTANCE_M = 0.09;
+
+    constexpr int CSV_PRECISION = 17;
+    constexpr int CONSOLE_PRECISION = 3;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc == 2 && std::string(argv[1]) == "--help")
@@ -27,9 +40,9 @@ int main(int argc, char *argv[])
         using namespace path_analysis;
         const auto recording = load_recording(argv[1]);
         // Keep raw samples by default; set a positive threshold to filter stationary clusters.
-        const auto path = preprocess_path(recording.path, 0.0);
-        const auto trajectory = estimate_trajectory(path);
-        const auto curvatures = estimate_curvatures(trajectory);
+        const auto path = preprocess_path(recording.path, PREPROCESSING_MINIMUM_DISTANCE_M);
+        const auto trajectory = estimate_trajectory(path, HEADING_MINIMUM_DISTANCE_M);
+        const auto curvatures = estimate_curvatures(trajectory, CURVATURE_MINIMUM_DISTANCE_M);
         const double length = path_length(path);
         const double area = cleaned_area(trajectory, recording.cleaning_gadget);
         const double seconds = traversal_time(path, curvatures);
