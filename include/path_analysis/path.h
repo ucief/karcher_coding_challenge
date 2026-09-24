@@ -35,7 +35,7 @@ namespace path_analysis
     // One unsigned curvature per segment: shortest heading change / segment length.
     // Zero-length segments have zero curvature. Undefined headings give zero here,
     // a deliberate fallback for stationary/ambiguous samples. Units: 1/metre.
-    std::vector<double> estimate_curvatures(const Trajectory &trajectory);
+    std::vector<double> estimate_curvatures(const Trajectory &trajectory, double minimum_distance = 0.09);
 
     // Challenge speed model, m/s: 1.10 below 0.5/m, linear down to 0.15 at 10/m.
     // Curvature is unsigned; negative/nonfinite values throw invalid_argument.
@@ -56,7 +56,7 @@ namespace path_analysis
     double cleaned_area(const Trajectory &trajectory,
                         const std::array<Point, 2> &cleaning_gadget);
 
-    // Export the cleaned area polygon to a JSON file for visualization. The polygon is the union of all gadget sweeps.                    
+    // Export the cleaned area polygon to a JSON file for visualization. The polygon is the union of all gadget sweeps.
     void export_cleaned_area_csv(
         const Trajectory &trajectory,
         const std::array<Point, 2> &gadget,

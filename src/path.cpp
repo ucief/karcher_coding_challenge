@@ -181,21 +181,78 @@ namespace path_analysis
         return world;
     }
 
-    std::vector<double> estimate_curvatures(const Trajectory &trajectory)
+    std::vector<double> estimate_curvatures(
+        const Trajectory &trajectory,
+        double minimum_distance)
     {
+        if (!std::isfinite(minimum_distance) || minimum_distance <= 0.0)
+        {
+            throw std::invalid_argument(
+                "Minimum distance for curvature calculation must be finite and positive");
+        }
+
         std::vector<double> curvatures;
+        curvatures.reserve(
+            trajectory.empty() ? 0 : trajectory.size() - 1);
+
         for (std::size_t i = 1; i < trajectory.size(); ++i)
         {
-            const Pose &a = trajectory[i - 1];
-            const Pose &b = trajectory[i];
-            const double length = bg::distance(a.position, b.position);
-            double curvature = std::numeric_limits<double>::quiet_NaN();
-            if (length > 0 && std::isfinite(a.heading) && std::isfinite(b.heading))
+            std::size_t left = i - 1;
+            std::size_t right = i;
+
+            double curvature =
+                std::numeric_limits<double>::quiet_NaN();
+
+            while (true)
             {
-                curvature = std::abs(angle_change(a.heading, b.heading)) / length;
+                const double window_distance =
+                    bg::distance(
+                        trajectory[left].position,
+                        trajectory[right].position);
+
+                const bool valid_headings =
+                    std::isfinite(trajectory[left].heading) &&
+                    std::isfinite(trajectory[right].heading);
+
+                if (window_distance >= minimum_distance &&
+                    valid_headings)
+                {
+                    curvature =
+                        std::abs(
+                            angle_change(
+                                trajectory[left].heading,
+                                trajectory[right].heading)) /
+                        window_distance;
+
+                    break;
+                }
+
+                const bool can_expand_left = left > 0;
+                const bool can_expand_right =
+                    right + 1 < trajectory.size();
+
+                if (!can_expand_left && !can_expand_right)
+                {
+                    std::cerr
+                        << "Warning: could not estimate curvature for segment "
+                        << i - 1 << " -> " << i
+                        << ": no valid window of at least "
+                        << minimum_distance
+                        << " m available\n";
+
+                    break;
+                }
+
+                if (can_expand_left)
+                    --left;
+
+                if (can_expand_right)
+                    ++right;
             }
+
             curvatures.push_back(curvature);
         }
+
         return curvatures;
     }
 
