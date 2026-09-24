@@ -9,7 +9,9 @@
 #include <stdexcept>
 #include <iostream>
 #include <limits>
-
+#include <fstream>
+#include <iomanip>
+#include <string>
 namespace path_analysis
 {
     namespace
@@ -226,38 +228,128 @@ namespace path_analysis
         return seconds;
     }
 
-    double cleaned_area(const Trajectory &trajectory, const std::array<Point, 2> &gadget)
+    static MultiPolygon compute_cleaned_region(
+        const Trajectory &trajectory,
+        const std::array<Point, 2> &gadget)
     {
         if (trajectory.size() < 2)
-            return 0;
+            return {};
+
         std::vector<Polygon> sweeps;
         const double max_turn = 2.0 * std::acos(-1.0) / 180.0;
+
         for (std::size_t i = 1; i < trajectory.size(); ++i)
         {
             const Pose &a = trajectory[i - 1];
             const Pose &b = trajectory[i];
+
             if (!std::isfinite(a.heading) || !std::isfinite(b.heading))
                 continue;
+
             const double turn = angle_change(a.heading, b.heading);
+
             const int steps = std::max({1,
-                                        static_cast<int>(std::ceil(bg::distance(a.position, b.position) / 0.02)),
-                                        static_cast<int>(std::ceil(std::abs(turn) / max_turn))});
+                                        static_cast<int>(
+                                            std::ceil(bg::distance(a.position, b.position) / 0.02)),
+                                        static_cast<int>(
+                                            std::ceil(std::abs(turn) / max_turn))});
+
             Point previous0 = to_world(gadget[0], a);
             Point previous1 = to_world(gadget[1], a);
+
             for (int step = 1; step <= steps; ++step)
             {
-                const double t = static_cast<double>(step) / steps;
-                const Pose pose{{(1 - t) * a.position.x() + t * b.position.x(),
-                                 (1 - t) * a.position.y() + t * b.position.y()},
-                                a.heading + t * turn};
-                const Point current0 = to_world(gadget[0], pose);
-                const Point current1 = to_world(gadget[1], pose);
-                add_sweep(sweeps, previous0, previous1, current1, current0);
+                const double t =
+                    static_cast<double>(step) / steps;
+
+                const Pose pose{
+                    {(1 - t) * a.position.x() + t * b.position.x(),
+                     (1 - t) * a.position.y() + t * b.position.y()},
+                    a.heading + t * turn};
+
+                const Point current0 =
+                    to_world(gadget[0], pose);
+
+                const Point current1 =
+                    to_world(gadget[1], pose);
+
+                add_sweep(
+                    sweeps,
+                    previous0,
+                    previous1,
+                    current1,
+                    current0);
+
                 previous0 = current0;
                 previous1 = current1;
             }
         }
-        return bg::area(union_sweeps(sweeps));
+
+        return union_sweeps(sweeps);
+    }
+
+    double cleaned_area(
+        const Trajectory &trajectory,
+        const std::array<Point, 2> &gadget)
+    {
+        return bg::area(
+            compute_cleaned_region(trajectory, gadget));
+    }
+
+    void export_cleaned_area_csv(
+        const Trajectory &trajectory,
+        const std::array<Point, 2> &gadget,
+        const std::string &filename)
+    {
+        const MultiPolygon coverage =
+            compute_cleaned_region(trajectory, gadget);
+
+        std::ofstream output(filename);
+
+        if (!output)
+            throw std::runtime_error(
+                "Cannot open cleaned area CSV output");
+
+        output
+            << "polygon_id,ring_id,is_hole,x_m,y_m\n"
+            << std::setprecision(17);
+
+        for (std::size_t polygon_id = 0;
+             polygon_id < coverage.size();
+             ++polygon_id)
+        {
+            const auto &polygon = coverage[polygon_id];
+
+            for (const auto &point : polygon.outer())
+            {
+                output
+                    << polygon_id << ','
+                    << 0 << ','
+                    << 0 << ','
+                    << point.x() << ','
+                    << point.y() << '\n';
+            }
+
+            for (std::size_t hole_id = 0;
+                 hole_id < polygon.inners().size();
+                 ++hole_id)
+            {
+                for (const auto &point :
+                     polygon.inners()[hole_id])
+                {
+                    output
+                        << polygon_id << ','
+                        << hole_id + 1 << ','
+                        << 1 << ','
+                        << point.x() << ','
+                        << point.y() << '\n';
+                }
+            }
+        }
+
+        if (!output)
+            throw std::runtime_error(
+                "Failed to write cleaned area CSV output");
     }
 
 } // namespace path_analysis

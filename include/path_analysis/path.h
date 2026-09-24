@@ -3,6 +3,7 @@
 #include "path_analysis/recording.h"
 
 #include <cstddef>
+#include <string>
 
 namespace path_analysis
 {
@@ -55,4 +56,9 @@ namespace path_analysis
     double cleaned_area(const Trajectory &trajectory,
                         const std::array<Point, 2> &cleaning_gadget);
 
+    // Export the cleaned area polygon to a JSON file for visualization. The polygon is the union of all gadget sweeps.                    
+    void export_cleaned_area_csv(
+        const Trajectory &trajectory,
+        const std::array<Point, 2> &gadget,
+        const std::string &filename);
 } // namespace path_analysis
